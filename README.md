@@ -1,0 +1,2 @@
+# ps_grep_sample
+PowerShellでExcelをGrepするサンプルスクリプト
