@@ -20,6 +20,11 @@ if($path -eq ""){
     echo "検索パスが入力されていません。"
     return
 
+}elseif(!(Test-Path $path)){
+
+    echo "検索パスが存在しません。"
+    return
+
 }
 
 $word = Read-Host "検索ワードを入力してください。"
@@ -41,10 +46,22 @@ $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
 $excel.DisplayAlerts = $false
 
+# 実行時間計測 開始
+$watch = New-Object System.Diagnostics.Stopwatch
+$watch.Start()
+
+# ファイル数カウント
+$total = (Get-ChildItem $path -Recurse -Include "*.xls*" -Name | Measure-Object).Count
+
 # Grep検索処理
 Get-ChildItem $path -Recurse -Include "*.xls*" -Name | % {
 
-    try{
+   try{
+
+        # 処理カウント
+        $cnt += 1
+        $status = "処理 {0}／$total 件完了" -F $cnt
+        Write-Progress $status -PercentComplete $cnt -CurrentOperation $currentOperation
 
         # サブフォルダ配下のパス
         $childPath = $_
@@ -89,10 +106,17 @@ Get-ChildItem $path -Recurse -Include "*.xls*" -Name | % {
 
 }
 
+# 実行時間計測 終了
+$watch.Stop()
+$time = $watch.Elapsed
+
+Write-Host "実行時間："$time.TotalSeconds.ToString("0.000")
+
 # メモリ開放
 $excel.Quit()
 $ws = $null
 $wb = $null
 $excel = $null
+$time = $null
 
 [GC]::Collect()
