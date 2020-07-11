@@ -6,9 +6,9 @@
 #
 #************************************************************
 
-echo "**************************************************"
-echo "**　　　　　　　　　GrepTool　　　　　　　　　　**"
-echo "**************************************************"
+Write-Host "**************************************************"
+Write-Host "**　　　　　　　　　GrepTool　　　　　　　　　　**"
+Write-Host "**************************************************"
 
 # ps1ファイルの配置パス
 $dir = Split-Path $myInvocation.MyCommand.Path -Parent
@@ -38,48 +38,61 @@ echo "検索ワード：$word"
 $excel = New-Object -ComObject Excel.Application
 
 # Excelオブジェクト設定
+$excel.Visible = $false
 $excel.DisplayAlerts = $false
 
 # Grep検索処理
 Get-ChildItem $path -Recurse -Include "*.xls*" -Name | % {
 
-    # サブフォルダ配下のパス
-    $childPath = $_
+    try{
 
-    # Excelブック　Open
-    $wb = $excel.Workbooks.Open("$path\$childPath")
+        # サブフォルダ配下のパス
+        $childPath = $_
 
-    # シート毎に検索を実施
-    $wb.Worksheets | % {
+        # Excelブック　Open
+        $wb = $excel.Workbooks.Open("$path\$childPath", $false, $true, [Type]::Missing, $null)
+
+        # シート毎に検索を実施
+        $wb.Worksheets | % {
     
-        $ws = $_
-        $wsName = $ws.Name
-        $first = $result = $ws.Cells.Find($word)
+            $ws = $_
+            $wsName = $ws.Name
+            $first = $result = $ws.Cells.Find($word)
 
-        while($result -ne $null){
+            while($result -ne $null){
 
-            echo "$path\$childPath：$wsName`t$($result.Row), $($result.Column)`t$($result.Text)" | 
-                Out-File -Append "$dir\result.txt"
+                $msg = "$path\$childPath：$wsName" + "`t" + "$($result.Row), $($result.Column)" + "`t" + "$($result.Text)"
+                echo  $msg | Out-File -Append "$dir\result.txt"
 
-            $result = $ws.Cells.FindNext($result)
+                $result = $ws.Cells.FindNext($result)
 
-            if($result.Address() -eq $first.Address()){
+                if($result.Address() -eq $first.Address()){
 
-                break
+                    break
+
+                }
 
             }
 
         }
 
-    } 
+        # Excelブック　Close
+        $wb.Close(0)
 
-    # Excelブック　Close
-    $wb.Close(0)
+    }catch{
+    
+        # エラー発生処理
+        $errMsg = "$path\$childPath" + "`t" + "ErrMsg：" + $_.Exception.Message
+        echo $errMsg | Out-File -Append "$dir\errLog.txt"
+
+    }
 
 }
 
-# 初期化
+# メモリ開放
 $excel.Quit()
 $ws = $null
 $wb = $null
 $excel = $null
+
+[GC]::Collect()
